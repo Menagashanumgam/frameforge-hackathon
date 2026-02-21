@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FrameForge — Video Temporal Forensics</title>
+    <meta name="description"
+        content="FrameForge — AI-powered video temporal error detection. Detect frame drops, merges and clarity issues instantly." />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@500;700&family=Outfit:wght@700;900&display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="ui.css" />
+</head>
+
+<body>
+
+    <!-- ═══ CRICKET STADIUM BACKGROUND ═══ -->
+    <div class="cricket-bg">
+        <!-- Floodlight towers -->
+        <div class="floodlight fl-left1"></div>
+        <div class="floodlight fl-left2"></div>
+        <div class="floodlight fl-right1"></div>
+        <div class="floodlight fl-right2"></div>
+        <!-- Ground -->
+        <div class="ground-oval"></div>
+        <div class="pitch"></div>
+        <!-- Crowd silhouette -->
+        <div class="crowd"></div>
+        <!-- Flying cricket balls -->
+        <div class="cricket-ball"></div>
+        <div class="cricket-ball-2"></div>
+        <!-- Stars -->
+        <div class="stars" id="starsLayer"></div>
+        <!-- Sparkles -->
+        <div id="sparklesLayer"></div>
+    </div>
+    <div class="scanline"></div>
+
+    <!-- HEADER -->
+    <header>
+        <div class="hdr-inner">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
+                        <line x1="7" y1="2" x2="7" y2="22" />
+                        <line x1="17" y1="2" x2="17" y2="22" />
+                        <line x1="2" y1="12" x2="22" y2="12" />
+                        <line x1="2" y1="7" x2="7" y2="7" />
+                        <line x1="2" y1="17" x2="7" y2="17" />
+                        <line x1="17" y1="7" x2="22" y2="7" />
+                        <line x1="17" y1="17" x2="22" y2="17" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="logo-title">Frame<span>Forge</span></div>
+                    <div class="logo-sub">🏏 Cricket Temporal Forensics
+                        <div class="status-dot" id="statusDot"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="hdr-actions">
+                <input type="file" id="fileInput" accept="video/*" hidden />
+                <button class="btn btn-ghost" onclick="document.getElementById('fileInput').click()">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <span id="pickLabel">Upload Video</span>
+                </button>
+                <button class="btn btn-primary" id="analyzeBtn" disabled onclick="startAnalysis()">
+                    <svg viewBox="0 0 24 24">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                    <span id="analyzeBtnLabel">ANALYZE</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+
+        <!-- IDLE -->
+        <div class="state show" id="state-idle">
+            <div class="idle-card" id="dropZone">
+                <div class="idle-icon">🏏</div>
+                <h2>Drop Your Video Here</h2>
+                <p>FrameForge uses AI-powered optical flow analysis to detect<br>
+                    <strong>frame drops</strong>, <strong>frame merges</strong> & <strong>clarity errors</strong>
+                    instantly.<br><br>
+                    <small>Supports MP4, MOV, AVI &bull; Drag & drop or click Upload</small>
+                </p>
+                <div class="idle-features">
+                    <div class="feat"><span class="feat-dot feat-drop"></span> Frame Drops</div>
+                    <div class="feat"><span class="feat-dot feat-merge"></span> Frame Merges</div>
+                    <div class="feat"><span class="feat-dot feat-clarity"></span> Clarity Errors</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOADING -->
+        <div class="state" id="state-loading">
+            <div class="spinner-wrap">
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring ring-2"></div>
+                <div class="spinner-inner">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                </div>
+            </div>
+            <h2>Analyzing Frames</h2>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <p class="loading-sub">Running Dense Optical Flow&hellip;</p>
+        </div>
+
+        <!-- RESULTS -->
+        <div class="state" id="state-results">
+
+            <div class="results-grid">
+                <!-- LEFT: video + chart -->
+                <div style="display:flex;flex-direction:column;gap:1.5rem;">
+                    <div class="video-panel">
+                        <video id="player" controls></video>
+                        <div class="hud-overlay" id="hudOverlay"></div>
+                    </div>
+                    <div class="chart-panel">
+                        <div class="panel-head">
+                            <h3><span class="icn">&#x2728;</span> Motion & Clarity Stream</h3>
+                            <ul class="legend">
+                                <li>
+                                    <div class="ldot ldot-c"></div> Optical Flow
+                                </li>
+                                <li>
+                                    <div class="ldot ldot-b"></div> Frame Clarity
+                                </li>
+                            </ul>
+                        </div>
+                        <canvas id="analyticsChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- RIGHT: stats + event log -->
+                <div style="display:flex;flex-direction:column;gap:1.25rem;">
+                    <div class="stats-row">
+                        <div class="stat-card stat-health">
+                            <div class="stat-icon">&#x1F6E1;</div>
+                            <div class="stat-label">Health Score</div>
+                            <div class="stat-val c-cyan" id="statHealth">&mdash;</div>
+                        </div>
+                        <div class="stat-card stat-anomaly">
+                            <div class="stat-icon">&#x26A0;&#xFE0F;</div>
+                            <div class="stat-label">Anomalies</div>
+                            <div class="stat-val c-green" id="statAnomaly">&mdash;</div>
+                        </div>
+                    </div>
+
+                    <div class="log-panel">
+                        <div class="log-head">
+                            <h3><span class="icn">&#x1F5A5;</span> Event Log</h3>
+                            <button class="icon-btn" title="Download report"
+                                onclick="downloadReport()">&#x2B07;</button>
+                        </div>
+                        <div class="log-body" id="logBody"></div>
+                        <div class="log-foot">
+                            <div class="foot-title">
+                                <span>Scan Summary</span>
+                                <span class="c-cyan"><span id="footFrames">0</span> Frames</span>
+                            </div>
+                            <div class="foot-row"><span>Processing Time</span><span class="foot-val"
+                                    id="footTime">&mdash;</span></div>
+                            <div class="foot-row"><span>Source FPS</span><span class="foot-val"
+                                    id="footFps">&mdash;</span></div>
+                            <div class="foot-row"><span>Total Frames</span><span class="foot-val"
+                                    id="footTotal">&mdash;</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FRAME CLASSIFICATION -->
+            <div class="cls-panel" id="clsPanel" style="display:none;">
+                <div class="cls-head">
+                    <h3><span class="icn">&#x1F4CA;</span> Frame-Level Classification</h3>
+                    <div class="cls-badges">
+                        <div class="badge badge-normal">&#x2713; Normal: <span id="cntNormal">0</span></div>
+                        <div class="badge badge-drop">&#x26A1; Drop: <span id="cntDrop">0</span></div>
+                        <div class="badge badge-merge">&#x23F8; Merge: <span id="cntMerge">0</span></div>
+                        <div class="badge badge-clarity">&#x1F50D; Clarity: <span id="cntClarity">0</span></div>
+                    </div>
+                </div>
+                <div class="timeline-wrap">
+                    <div class="timeline-label">Frame Timeline &mdash; click to seek</div>
+                    <div class="timeline-bar" id="timelineBar"></div>
+                </div>
+                <div class="cls-table-wrap">
+                    <table class="cls-table">
+                        <thead>
+                            <tr>
+                                <th>Frame</th>
+                                <th>Time</th>
+                                <th>Class</th>
+                                <th>Motion</th>
+                                <th>Blur</th>
+                                <th>Brightness</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        const API = 'http://localhost:5000';
+        let report = null, chart = null, hudTimer = null;
+        const $ = id => document.getElementById(id);
+
+        const stateIdle = $('state-idle');
+        const stateLoading = $('state-loading');
+        const stateResults = $('state-results');
+        const player = $('player');
+        const hudOverlay = $('hudOverlay');
+
+        function showState(el) {
+            [stateIdle, stateLoading, stateResults].forEach(s => s.classList.remove('show'));
+            el.classList.add('show');
+        }
+
+        async function checkHealth() {
+            try {
+                const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(3000) });
+                $('statusDot').className = r.ok ? 'status-dot online' : 'status-dot';
+            } catch { $('statusDot').className = 'status-dot'; }
+        }
+        checkHealth(); setInterval(checkHealth, 5000);
+
+        $('fileInput').addEventListener('change', e => {
+            const f = e.target.files[0];
+            if (!f) return;
+            $('pickLabel').textContent = f.name.length > 28 ? f.name.slice(0, 26) + '…' : f.name;
+            $('analyzeBtn').disabled = false;
+        });
+
+        const dropZone = $('dropZone');
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault(); dropZone.classList.remove('drag-over');
+            const f = e.dataTransfer.files[0];
+            if (f && f.type.startsWith('video/')) {
+                const dt = new DataTransfer(); dt.items.add(f);
+                $('fileInput').files = dt.files;
+                $('pickLabel').textContent = f.name.length > 28 ? f.name.slice(0, 26) + '…' : f.name;
+                $('analyzeBtn').disabled = false;
+            }
+        });
+
+        async function startAnalysis() {
+            const file = $('fileInput').files[0];
+            if (!file) return;
+            $('analyzeBtn').disabled = true;
+            $('analyzeBtnLabel').textContent = 'ANALYZING…';
+            showState(stateLoading);
+            const bar = $('progressBar');
+            bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = '';
+
+            const fd = new FormData(); fd.append('video', file);
+            try {
+                const res = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
+                if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.details || err.error || `HTTP ${res.status}`); }
+                report = await res.json();
+                renderResults();
+            } catch (err) {
+                console.error(err);
+                alert('Analysis failed:\n' + err.message);
+                $('analyzeBtnLabel').textContent = 'ANALYZE';
+                $('analyzeBtn').disabled = false;
+                showState(stateIdle);
+            }
+        }
+
+        function renderResults() {
+            showState(stateResults);
+            $('analyzeBtnLabel').textContent = 'RE-SCAN';
+            $('analyzeBtn').disabled = false;
+            player.src = report.videoUrl;
+
+            const s = report.summary;
+            $('statHealth').textContent = s.health_score + '%';
+            $('statAnomaly').textContent = s.error_count;
+
+            const hel = $('statHealth');
+            hel.className = s.health_score >= 80 ? 'stat-val c-cyan' : s.health_score >= 50 ? 'stat-val c-amber' : 'stat-val c-red';
+            const ael = $('statAnomaly');
+            ael.className = s.error_count === 0 ? 'stat-val c-green' : s.error_count < 5 ? 'stat-val c-amber' : 'stat-val c-red';
+
+            $('footFrames').textContent = s.processed_frames;
+            $('footTime').textContent = s.processing_time;
+            $('footFps').textContent = s.fps ? s.fps.toFixed(2) : '—';
+            $('footTotal').textContent = s.total_frames;
+
+            renderLog(report.errors || []);
+            renderChart(report.analytics || []);
+            renderClassification(report);
+
+            clearInterval(hudTimer);
+            hudTimer = setInterval(syncHUD, 250);
+        }
+
+        function renderLog(errors) {
+            const body = $('logBody'); body.innerHTML = '';
+            if (!errors.length) {
+                body.innerHTML = `<div class="all-clear"><div class="big-ico">&#x2705;</div><p>ALL CLEAR — NO ANOMALIES</p></div>`;
+                return;
+            }
+            errors.forEach(err => {
+                const isHigh = err.severity === 'High', isMed = err.severity === 'Medium';
+                const cls = isHigh ? 'sev-high' : isMed ? 'sev-med' : 'sev-low';
+                const ico = isHigh ? '&#x26A1;' : isMed ? '&#x1F551;' : '&#x1F506;';
+                const div = document.createElement('div');
+                div.className = `log-item ${cls}`;
+                div.innerHTML = `
+        <div class="log-ico">${ico}</div>
+        <div class="log-content">
+          <div class="log-meta"><span class="log-ts">T+${err.timestamp.toFixed(3)}s</span><span class="log-fr">FRAME ${err.frame}</span></div>
+          <div class="log-name">${err.type}</div>
+          <div class="log-desc">${err.description}</div>
+        </div>
+        <div style="color:var(--muted);align-self:center;padding-left:.5rem;">&#x276F;</div>`;
+                div.onclick = () => { player.currentTime = err.timestamp; player.play(); };
+                body.appendChild(div);
+            });
+        }
+
+        function renderChart(analytics) {
+            if (!analytics.length) return;
+            const ctx = $('analyticsChart').getContext('2d');
+            if (chart) chart.destroy();
+            const g1 = ctx.createLinearGradient(0, 0, 0, 200); g1.addColorStop(0, 'rgba(34,211,238,.35)'); g1.addColorStop(1, 'rgba(34,211,238,0)');
+            const g2 = ctx.createLinearGradient(0, 0, 0, 200); g2.addColorStop(0, 'rgba(168,85,247,.15)'); g2.addColorStop(1, 'rgba(168,85,247,0)');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: analytics.map(a => a.timestamp.toFixed(1)),
+                    datasets: [
+                        { label: 'Motion Score', data: analytics.map(a => a.motion_score), borderColor: '#22d3ee', backgroundColor: g1, borderWidth: 2.5, fill: true, tension: .4, pointRadius: 0 },
+                        { label: 'Blur Score', data: analytics.map(a => a.blur_score), borderColor: 'rgba(168,85,247,.7)', backgroundColor: g2, borderWidth: 1.5, borderDash: [6, 4], fill: true, tension: .4, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', titleColor: '#22d3ee', bodyColor: '#f1f5f9', borderColor: 'rgba(255,255,255,.08)', borderWidth: 1 } },
+                    scales: { x: { display: false }, y: { display: false } }
+                }
+            });
+        }
+
+        function renderClassification(data) {
+            const panel = $('clsPanel');
+            if (!data?.frame_classifications?.length) { panel.style.display = 'none'; return; }
+            panel.style.display = 'block';
+
+            const counts = data.summary.classification_counts || {};
+            $('cntNormal').textContent = counts['Normal'] || 0;
+            $('cntDrop').textContent = counts['Frame Drop'] || 0;
+            $('cntMerge').textContent = counts['Frame Merge'] || 0;
+            $('cntClarity').textContent = counts['Clarity Error'] || 0;
+
+            const bar = $('timelineBar'); bar.innerHTML = '';
+            const clsMap = { 'Normal': 'tl-normal', 'Frame Drop': 'tl-drop', 'Frame Merge': 'tl-merge', 'Clarity Error': 'tl-clarity' };
+            data.frame_classifications.forEach(f => {
+                const seg = document.createElement('div');
+                seg.className = 'tl-seg ' + (clsMap[f.classification] || 'tl-normal');
+                seg.title = `Frame ${f.frame} @ ${f.timestamp}s — ${f.classification}`;
+                seg.onclick = () => { player.currentTime = f.timestamp; player.play(); };
+                bar.appendChild(seg);
+            });
+
+            const tbody = $('clsTableBody'); tbody.innerHTML = '';
+            const badgeMap = { 'Normal': 'cls-badge-Normal', 'Frame Drop': 'cls-badge-Drop', 'Frame Merge': 'cls-badge-Merge', 'Clarity Error': 'cls-badge-Clarity' };
+            data.frame_classifications.forEach(f => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+        <td class="td-mono">${f.frame}</td>
+        <td class="td-mono">${f.timestamp}s</td>
+        <td><span class="cls-badge ${badgeMap[f.classification] || 'cls-badge-Normal'}">${f.classification}</span></td>
+        <td>${f.motion_score.toFixed(4)}</td>
+        <td>${f.blur_score.toFixed(2)}</td>
+        <td>${f.brightness.toFixed(2)}</td>`;
+                tr.onclick = () => { player.currentTime = f.timestamp; player.play(); };
+                tbody.appendChild(tr);
+            });
+        }
+
+        let lastHudKey = '';
+        function syncHUD() {
+            if (!report?.errors) return;
+            const t = player.currentTime;
+            const active = report.errors.filter(e => Math.abs(e.timestamp - t) < 0.8);
+            const key = active.map(e => e.frame).join(',');
+            if (key === lastHudKey) return; lastHudKey = key;
+            hudOverlay.innerHTML = active.map(e => `
+      <div class="hud-alert">
+        <div class="hico">&#x26A1;</div>
+        <div><div class="htitle">Anomaly Detected</div><div class="hdesc">${e.type} &nbsp;@&nbsp; ${e.timestamp.toFixed(2)}s</div></div>
+      </div>`).join('');
+        }
+
+        function downloadReport() {
+            if (!report) return;
+            const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'frameforge_report.json'; a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+
+<script>
+    // ── Generate random stars ──
+    const starsLayer = document.getElementById('starsLayer');
+    for (let i = 0; i < 90; i++) {
+        const s = document.createElement('div');
+        s.className = 'star';
+        const size = Math.random() * 2.5 + 0.5;
+        s.style.cssText = `width:${size}px;height:${size}px;top:${Math.random() * 65}%;left:${Math.random() * 100}%;opacity:${Math.random() * .6 + .1};--dur:${Math.random() * 4 + 2}s;--delay:${Math.random() * 5}s`;
+        starsLayer.appendChild(s);
+    }
+    // ── Generate sparkle dots (stadium light bokeh) ──
+    const sparklesLayer = document.getElementById('sparklesLayer');
+    const sparkColors = ['#22d3ee', '#a855f7', '#f97316', '#fbbf24', '#10b981', '#ef4444', '#fff'];
+    for (let i = 0; i < 30; i++) {
+        const sp = document.createElement('div');
+        sp.className = 'sparkle';
+        sp.style.cssText = `left:${Math.random() * 100}%;bottom:${Math.random() * 40}%;background:${sparkColors[i % sparkColors.length]};--dur:${Math.random() * 7 + 5}s;--delay:${Math.random() * 8}s;opacity:.7;border-radius:50%;position:absolute;width:3px;height:3px;`;
+        sparklesLayer.appendChild(sp);
+    }
+</script>
+
+</html>

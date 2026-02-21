@@ -1,0 +1,13 @@
+{
+  "name": "frameforge-hackathon",
+  "version": "1.0.0",
+  "description": "FrameForge — Cricket Video Temporal Forensics Engine",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "build": "pip install -r requirements.txt"
+  },
+  "keywords": ["cricket", "video", "cv2", "optical-flow"],
+  "author": "Menaga",
+  "license": "ISC"
+}
